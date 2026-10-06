@@ -1,0 +1,440 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Indian Defence Organisational Architecture</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#0b0e11;--pn:#12171c;--ln:#243038;--tx:#e6ebef;--mu:#8a98a4;--g:#5f9a5f;--b:#4f8fd6;--a:#d9a13b;--r:#e0564f}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}*{box-sizing:border-box}
+body{margin:0;background:var(--bg) linear-gradient(var(--ln) 1px,transparent 1px) 0 0/40px 40px;background-blend-mode:soft-light;color:var(--tx);font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:14px 18px 6px}h1{margin:0;font-size:20px;letter-spacing:.14em;font-weight:600}.sub{color:var(--mu);font-size:11px;letter-spacing:.18em}
+nav{display:flex;flex-wrap:wrap;gap:4px;padding:6px 18px}nav button,.btn{background:var(--pn);color:var(--tx);border:1px solid var(--ln);padding:4px 9px;font-size:11px;letter-spacing:.06em;cursor:pointer;border-radius:3px}
+nav button.on,.btn:hover,nav button:hover{border-color:var(--g);color:#bfe3bf}
+.bar{display:flex;flex-wrap:wrap;gap:6px;padding:4px 18px 8px}.bar input,.bar select{background:var(--pn);color:var(--tx);border:1px solid var(--ln);padding:5px 8px;border-radius:3px;font-size:12px}.bar input{flex:1;min-width:200px}
+#res{margin:0 18px;background:var(--pn);border:1px solid var(--ln);display:none;max-height:240px;overflow:auto}#res div{padding:6px 10px;border-bottom:1px solid var(--ln);cursor:pointer}#res div:hover{background:#1a222a}
+#app{display:flex;gap:10px;padding:0 18px 10px;height:calc(100vh - 175px);min-height:420px}
+#gw{flex:1;overflow:auto;background:rgba(18,23,28,.8);border:1px solid var(--ln);border-radius:4px}
+#pn{width:340px;overflow:auto;background:var(--pn);border:1px solid var(--ln);border-radius:4px;padding:12px}
+#list,#doc{display:none;padding:0 18px 14px}#doc{padding:10px 22px 24px;max-width:1100px}
+.lg{display:flex;flex-wrap:wrap;gap:12px;padding:0 18px 12px;font-size:10px;color:var(--mu)}
+.k{display:block;color:var(--mu);font-size:10px;letter-spacing:.12em;margin-top:9px}.tag{display:inline-block;border:1px solid;padding:0 5px;font-size:10px;border-radius:2px;margin:1px}
+.rl{cursor:pointer;padding:3px 0;border-bottom:1px dotted var(--ln)}a{color:var(--b)}
+table{border-collapse:collapse;width:100%;font-size:12px}td,th{border:1px solid var(--ln);padding:5px 8px;text-align:left;vertical-align:top}th{color:var(--mu);font-weight:500}
+h2{font-size:15px;letter-spacing:.1em}.ch{display:inline-block;margin:3px;padding:3px 8px;border:1px solid var(--ln);cursor:pointer;border-radius:12px}
+text{font-size:11px;fill:var(--tx)}.nd{cursor:pointer}.nd rect{fill:#161d24;stroke:#33424d}.nd.sel rect{stroke:#bfe3bf;stroke-width:2}
+@media(max-width:800px){#app{display:block;height:auto}#gw{display:none}#pn{width:auto;margin-top:8px}#list{display:block}}
+</style></head><body>
+<header><h1>INDIAN DEFENCE<br>ORGANISATIONAL ARCHITECTURE</h1><div class="sub">COMMAND • ADMINISTRATION • ACQUISITION • TECHNOLOGY • PRODUCTION • OPERATIONS</div><div style="color:var(--mu);margin-top:6px">An interactive public-domain map of India's defence establishment.</div></header>
+<nav id="nav"></nav>
+<div class="bar"><input id="q" placeholder="Search organisation, capability, function…"><select id="fs"></select><select id="ff"></select><select id="ft"></select><button class="btn" onclick="zoom(-.1)">−</button><button class="btn" onclick="zoom(.1)">+</button></div>
+<div id="res"></div>
+<div id="app"><div id="gw"><svg id="svg"></svg></div><div id="pn">Select a node. Click a node to select and expand it.</div></div>
+<div id="list"></div><div id="doc"></div>
+<div class="lg" id="lg"></div>
+<script>
+const $=s=>document.querySelector(s);
+const CL={V:['PUBLICLY DOCUMENTED (not live re-verified)','#5f9a5f'],P:['PARTIALLY VERIFIED','#4f8fd6'],D:['PUBLICLY DOCUMENTED BUT INCOMPLETE','#d9a13b'],U:['UNCERTAIN','#e0564f'],C:['CLASSIFIED / NOT PUBLICLY ESTABLISHED','#e0564f'],R:['REPRESENTATIVE (typical / doctrinal)','#8a98a4'],I:['INFERRED','#d9a13b']};
+const SRC={M:['Ministry of Defence','https://mod.gov.in'],P:['Dept of Defence Production','https://ddpmod.gov.in'],D:['DRDO','https://drdo.gov.in'],A:['Indian Army','https://indianarmy.nic.in'],N:['Indian Navy','https://indiannavy.nic.in'],F:['Indian Air Force','https://indianairforce.nic.in'],X:['PIB / Gazette / Parliament','https://pib.gov.in'],G:['Constitution of India (Art. 53)','https://egazette.gov.in'],C:['Indian Coast Guard','https://indiancoastguard.gov.in']};
+const RC={C:'COMMANDS',A:'ADMINISTRATIVELY_CONTROLS',R:'REPORTS_TO',P:'POLICY_CONTROLS',O:'OPERATIONALLY_CONTROLS',T:'TECHNICALLY_CONTROLS',F:'FINANCIALLY_CONTROLS',X:'COORDINATES',S:'SUPPORTS',G:'GROUPING'};
+const gp=(c,d,g,t)=>({c,d,g,t});
+const TY={};
+[['COMMANDS','REPORTS_TO','ADMINISTRATIVELY_CONTROLS','POLICY_CONTROLS'].map(t=>TY[t]=gp('#c9d3da','','■','command / admin')),
+['COORDINATES','JOINT_WITH','ADVISES'].map(t=>TY[t]=gp('#9aa7b1','6 4','◇','coordination')),
+['TECHNICALLY_CONTROLS','SPECIFIES','EVALUATES','TESTS','CERTIFIES','INSPECTS','DESIGNS','DEVELOPS','INTEGRATES'].map(t=>TY[t]=gp('#4f8fd6','','▲','technical')),
+['PROCURES_FOR','FUNDS','FINANCIALLY_CONTROLS','SUPPLIES','ACCEPTS','MANUFACTURES','GENERATES_REQUIREMENT'].map(t=>TY[t]=gp('#d9a13b','','●','procurement')),
+['OPERATIONALLY_CONTROLS','OPERATES','USES','MAINTAINS','TRAINS','SUPPORTS'].map(t=>TY[t]=gp('#5f9a5f','','◆','operational / end-user')),
+TY.GROUPING=gp('#3a4650','2 3','·','navigation grouping (not an organisational relationship)')];
+const CH={cmd:['COMMANDS','REPORTS_TO','ADMINISTRATIVELY_CONTROLS','OPERATIONALLY_CONTROLS','POLICY_CONTROLS'],proc:['PROCURES_FOR','GENERATES_REQUIREMENT','FUNDS','FINANCIALLY_CONTROLS','ACCEPTS','EVALUATES','SPECIFIES'],tech:['TECHNICALLY_CONTROLS','DESIGNS','DEVELOPS','TESTS','CERTIFIES','INSPECTS','INTEGRATES'],eu:['USES','OPERATES','MAINTAINS','SUPPLIES','MANUFACTURES','SUPPORTS','TRAINS']};
+const D=`IDE||Indian Defence Establishment|Root|Joint||Grouping root of the public-domain map|G|V|M|
+CON|IDE|Constitutional|Domain|Civilian|Administration|Constitutional basis of civil control over the Armed Forces|G|V|G|
+PRES|CON|President of India|Authority|Civilian|Command|Supreme Commander of the Armed Forces (Art. 53); exercised per law and in practice on Council of Ministers' advice|P|V|G|
+POL|IDE|Political|Domain|Civilian|Administration|Executive security decision-making|G|V|M|
+PM|POL|Prime Minister & Union Cabinet|Authority|Civilian|Administration|Collective executive authority; PM heads the CCS|P|V|M|
+CCS|POL|Cabinet Committee on Security|Committee|Civilian|Procurement|Apex security committee; approves large acquisitions above delegated thresholds|P|V|M|
+RM|POL|Defence Minister (Raksha Mantri)|Authority|Civilian|Procurement|Political head of MoD; chairs Defence Acquisition Council|P|V|M|
+NSCS|POL|NSA / NSCS & Defence Planning Committee|Advisory|Joint|Operations|NSA chairs the Defence Planning Committee (2018); secretariat sits outside MoD|X|P|X|
+CIV|IDE|Civilian Defence|Domain|Civilian|Administration|Ministry of Defence and its departments|G|V|M|
+MOD|CIV|Ministry of Defence|Ministry|Civilian|Administration|Five departments; Service HQs act as integrated HQs of the Ministry|A|V|M|
+DOD|MOD|Department of Defence|Department|Civilian|Administration,Procurement|Headed by Defence Secretary; Services coordination, budget, capital acquisition|A|V|M|
+DSEC|DOD|Defence Secretary|Appointment|Civilian|Administration,Procurement|Head of DoD; chairs Defence Procurement Board|R|V|M|
+CAW|DOD|Acquisition Wing (DG Acquisition)|Wing|Civilian|Procurement|Processes capital acquisition proposals under the Defence Acquisition Procedure|A|V|M|
+DFIN|DOD|Defence Finance (IFA / Accounts)|Finance|Civilian|Administration|Integrated Finance vets proposals; Defence Accounts handles accounting and payment|F|V|M|
+DMA|MOD|Dept of Military Affairs|Department|Joint|Command,Operations|Created 2019; CDS is its Secretary; jointness, restructuring, defined procurement scope|A|V|M|
+DDP|MOD|Dept of Defence Production|Department|Civilian|Production,Quality|Administers DPSUs; houses DGQA and DGAQA; indigenisation and exports|A|V|P|
+DDRD|MOD|Dept of Defence R&D|Department|R&D|R&D|Secretary DDR&D is also Chairman DRDO|A|V|D|
+DESW|MOD|Dept of Ex-Servicemen Welfare|Department|Civilian|Administration|Resettlement, pension policy, ECHS|A|V|M|
+JNT|IDE|Joint / CDS|Domain|Joint|Operations|Tri-service structures|G|V|M|
+CDS|JNT|Chief of Defence Staff|Appointment|Joint|Command|Permanent Chairman COSC; Secretary DMA; official terms: no military command over Service Chiefs|R|V|M|
+IDS|JNT|HQ Integrated Defence Staff|Staff HQ|Joint|Operations,Procurement|Joint planning, perspective plans, jointness; supports CDS|R|V|M|
+ANC|JNT|Andaman & Nicobar Command|Joint command|Joint|Operations|Publicly described as the only tri-service theatre command|O|P|M|Port Blair
+THC|JNT|Proposed Theatre Commands|Proposal|Joint|Operations|Publicly discussed; not established in reviewed public sources|X|U|X|
+ARMY|IDE|Indian Army|Domain|Army|Command|Land force|G|V|A|
+AHQ|ARMY|Army Headquarters|HQ|Army|Command,Administration|Integrated HQ of MoD; staff HQ of the COAS|C|V|A|New Delhi
+COAS|AHQ|Chief of Army Staff|Appointment|Army|Command|Commands the Army; principal staff officers head branches (operations, personnel, logistics, material, engineers)|C|V|A|
+ADB|AHQ|Army Design Bureau|Directorate|Army|Procurement,R&D|Interface for indigenous design with industry and DRDO|S|P|A|
+CMD|COAS|Operational Commands|Command|Army|Operations|Northern, Western, Eastern, Southern, Central, South Western; led by Army Commanders|C|V|A|
+ART|COAS|ARTRAC|Command|Army|Training|Army Training Command: doctrine and training|C|V|A|Shimla
+COR|CMD|Corps|Formation|Army|Operations|Field formations under commands; order of battle not enumerated here|C|D|A|
+DIV|COR|Divisions|Formation|Army|Operations|Under Corps|C|D|A|
+BDE|DIV|Brigades|Formation|Army|Operations|Under Divisions|C|D|A|
+UNIT|BDE|Battalions / Regiments|Unit|Army|Operations|Belong to an arm or service; employed under formation commanders|C|V|A|
+SUB|UNIT|Companies, Platoons, Sections|Sub-unit|Army|Operations|Equivalents: squadrons, batteries, troops|C|V|A|
+ARMS|ARMY|Arms & Services|Group|Army|Operations|Arm/service is distinct from rank, appointment and formation|G|V|A|
+CA|ARMS|Combat Arms|Arm|Army|Operations|Infantry, Armoured Corps, Mechanised Infantry, Artillery, Army Air Defence, Army Aviation|S|V|A|
+CSA|ARMS|Combat Support|Arm|Army|Operations|Engineers, Signals, Intelligence Corps|S|V|A|
+SVC|ARMS|Army Services|Service|Army|Logistics,Maintenance,Medical,Training|AOC, ASC, EME, medical, postal, military police, education, JAG and others|S|V|A|
+NAVY|IDE|Indian Navy|Domain|Navy|Command|Maritime force|G|V|N|
+NHQ|NAVY|Naval Headquarters|HQ|Navy|Command,Administration|Integrated HQ of MoD|C|V|N|New Delhi
+CNS|NHQ|Chief of Naval Staff|Appointment|Navy|Command|Commands the Navy; principal staff: operations, personnel, material, logistics, aviation|C|V|N|
+NCM|CNS|Naval Commands|Command|Navy|Operations,Training|Western, Eastern, Southern (training)|C|V|N|
+FLT|NCM|Fleets|Formation|Navy|Operations|Western and Eastern Fleets under their commands|O|V|N|
+SUBN|FLT|Ships & Submarines|Platform units|Navy|Operations|Commanded by commanding officers; includes the Submarine Arm|O|P|N|
+NAV|NCM|Naval Aviation|Arm|Navy|Operations|Naval air squadrons and air stations|O|P|N|
+MAR|NCM|Marine Commandos|Special force|Navy|Operations|Naval special operations; detail limited|O|D|N|
+SHO|NCM|Dockyards & Shore Establishments|Shore|Navy|Maintenance,Logistics,Training|Refit, depots, bases, training schools|S|V|N|
+NDG|NHQ|Naval Design & Technical Directorates|Directorate|Navy|Procurement,R&D|Design, ship production, staff requirements; exact names to verify|T|P|N|
+IAF|IDE|Indian Air Force|Domain|Air Force|Command|Air force|G|V|F|
+AIRHQ|IAF|Air Headquarters|HQ|Air Force|Command,Administration|Integrated HQ of MoD|C|V|F|New Delhi
+CAS|AIRHQ|Chief of Air Staff|Appointment|Air Force|Command|Commands the IAF; staff: operations, plans, maintenance, personnel|C|V|F|
+AC|CAS|Air Commands|Command|Air Force|Operations,Training,Maintenance|Western, Eastern, Central, Southern, South Western; Training; Maintenance|C|V|F|
+STN|AC|Air Force Stations|Base|Air Force|Operations,Maintenance|Base level hosting wings and units|C|V|F|
+WNG|STN|Wings & Squadrons|Formation|Air Force|Operations|Squadrons operate aircraft; flights are sub-units|C|P|F|
+MC|AC|Maintenance Command & Depots|Logistics|Air Force|Maintenance,Logistics|Overhaul, repair and equipment depots|S|P|F|
+ASTE|AIRHQ|ASTE|Test establishment|Air Force|Testing|Aircraft & Systems Testing Establishment: flight test of aircraft and systems|T|V|F|Bengaluru
+STR|IDE|Strategic|Domain|Joint|Operations|Public-domain, high-level only|G|V|M|
+NCA|STR|Nuclear Command Authority|Authority|Civilian|Command|Political Council (PM) and Executive Council (NSA), per official 2003 statement|C|V|X|
+SFC|ECN|Strategic Forces Command|Command|Joint|Operations|Publicly acknowledged; organisational detail not publicly established|O|D|X|
+SSBN|STR|Strategic submarines|Capability|Navy|Operations|Publicly acknowledged; organisational detail not publicly established|X|D|X|
+STA|STR|Strategic air delivery|Capability|Air Force|Operations|Not established in reviewed public sources|X|C|X|
+MSL|STR|Long-range missiles|Capability|Joint|R&D|Use officially stated class terms only; not labelled ICBM unless officially stated|X|D|X|
+RD|IDE|R&D|Domain|R&D|R&D|DRDO and R&D establishments|G|V|D|
+DRDO|RD|DRDO|Organisation|R&D|R&D|Under DDR&D; defence technology development, test and certification support|A|V|D|New Delhi
+DOM|DRDO|Technology domains|Group|R&D|R&D|Cluster naming and lab mapping changed in post-2020 reorganisation; verify at drdo.gov.in|G|P|D|
+MS|DOM|Missiles & Strategic Systems|Domain|R&D|R&D|Missile, rocket, seeker technology|G|P|D|
+DRDL|MS|DRDL|Lab|R&D|R&D|Missile systems design; customers: all Services; production partners incl. BDL|S|V|D|Hyderabad
+RCI|MS|RCI|Lab|R&D|R&D|Missile avionics, seekers, guidance; customers: Services|S|P|D|Hyderabad
+ASL|MS|ASL|Lab|R&D|R&D|Advanced missile systems; limited public detail|S|D|D|Hyderabad
+AE|DOM|Aeronautics & Propulsion|Domain|R&D|R&D|Aircraft, UAV, engines|G|P|D|
+ADE|AE|ADE|Lab|R&D|R&D|Aircraft and UAV design; customers: IAF, Army, Navy|S|V|D|Bengaluru
+GTRE|AE|GTRE|Lab|R&D|R&D|Gas turbine engines; customer: IAF and others|S|V|D|Bengaluru
+CABS|AE|CABS|Lab|R&D|R&D|Airborne early warning and control systems|S|P|D|Bengaluru
+ARM|DOM|Armaments & Combat Engineering|Domain|R&D|R&D|Armaments, explosives, vehicles|G|P|D|
+ARDE|ARM|ARDE|Lab|R&D|R&D|Armament systems; customer: Army|S|V|D|Pune
+HEM|ARM|HEMRL|Lab|R&D|R&D|High-energy materials and propellants|S|V|D|Pune
+CVR|ARM|CVRDE|Lab|R&D|R&D|Combat vehicle design; customer: Army|S|V|D|Chennai (Avadi)
+EL|DOM|Electronics, Radar & Comms|Domain|R&D|R&D|Radar, EW, communications|G|P|D|
+LRDE|EL|LRDE|Lab|R&D|R&D|Radar and surveillance; customers: Services; production partners incl. BEL|S|V|D|Bengaluru
+DLRL|EL|DLRL|Lab|R&D|EW,R&D|Electronic warfare and signals systems|S|V|D|Hyderabad
+DEAL|EL|DEAL|Lab|R&D|R&D|Communications and electronics applications|S|P|D|Dehradun
+NV|DOM|Naval & Underwater|Domain|R&D|R&D|Underwater and naval systems|G|P|D|
+NSTL|NV|NSTL|Lab|R&D|R&D|Underwater weapons and sonar; customer: Navy|S|V|D|Visakhapatnam
+NMRL|NV|NMRL|Lab|R&D|R&D|Naval materials; customer: Navy|S|V|D|Ambernath
+MT|DOM|Materials, Life Sciences & AI|Domain|R&D|R&D|Materials, physiology, AI|G|P|D|
+DMRL|MT|DMRL|Lab|R&D|R&D|Metals and alloys|S|V|D|Hyderabad
+DIPAS|MT|DIPAS|Lab|R&D|R&D|Physiology and allied sciences incl. high-altitude|S|V|D|Delhi
+CAIR|MT|CAIR|Lab|R&D|Cyber,R&D|AI, robotics, command-control and cyber technologies|S|P|D|Bengaluru
+ACQ|IDE|Acquisition|Domain|Civilian|Procurement|Capability gap to contract|G|V|M|
+PLAN|ACQ|Capability planning|Process|Joint|Procurement|Long-term perspective and Services capital acquisition plans; detail mostly not public|X|D|M|
+DAC|ACQ|Defence Acquisition Council|Committee|Civilian|Procurement|Chaired by RM; grants Acceptance of Necessity|P|V|M|
+DPB|ACQ|Defence Procurement Board|Board|Civilian|Procurement|Chaired by Defence Secretary|P|V|M|
+SQR|ACQ|Service HQ requirement branches|Staff|Joint|Procurement|Generate and specify Service requirements|S|P|M|
+TEC|ACQ|Technical & staff evaluation|Process|Joint|Testing,Procurement|Technical evaluation committees; trials; Service staff evaluation|S|P|M|
+CNC|ACQ|Contract Negotiation Committee|Committee|Civilian|Procurement|Negotiates commercial terms for capital contracts|S|P|M|
+PROD|IDE|Production|Domain|Civilian|Production|DPSUs and production units|G|V|P|
+NEW|PROD|Post-2021 successor DPSUs|Group|Industry|Production|MIL, AVNL, AWEIL, TCL, YIL, IOL, GIL: formed from OFB corporatisation (2021)|A|V|P|
+HAL|PROD|Hindustan Aeronautics Limited|DPSU|Industry|Production,R&D|Aircraft, helicopters, engines; design and licensed production roles|A|V|P|Bengaluru
+BEL|PROD|Bharat Electronics Limited|DPSU|Industry|Production|Radars, electronics, communications|A|V|P|Bengaluru
+BEML|PROD|Bharat Earth Movers Limited|DPSU|Industry|Production|Heavy and special vehicles|A|P|P|Bengaluru
+BDL|PROD|Bharat Dynamics Limited|DPSU|Industry|Production|Missiles and torpedoes production|A|V|P|Hyderabad
+MID|PROD|Mishra Dhatu Nigam Limited|DPSU|Industry|Production|Special alloys and materials|A|V|P|Hyderabad
+SHP|PROD|Shipyard DPSUs|Group|Industry|Production|MDL, GRSE, GSL, HSL|A|V|P|
+TEST|IDE|Testing, Quality & Certification|Domain|Civilian|Quality,Testing,Certification|Design, test, quality and certification are separate authorities|G|V|P|
+DGQA|TEST|DGQA|Quality org|Civilian|Quality|Under DDP; quality assurance of stores for the Services|A|V|P|
+DGAQA|TEST|DGAQA|Quality org|Civilian|Quality|Under DDP; aeronautical quality assurance|A|V|P|
+CEM|TEST|CEMILAC|Certification|R&D|Certification|Under DRDO; military airworthiness certification|A|V|D|Bengaluru
+RNG|TEST|Test ranges & trial establishments|Testing|R&D|Testing|DRDO ranges and Service trial organisations; detail varies|S|D|D|
+LOG|IDE|Logistics & Sustainment|Domain|Joint|Logistics|Lifecycle support after acceptance|G|V|M|
+LA|LOG|Army: AOC / ASC / EME|Services|Army|Logistics,Maintenance|Ordnance supply, transport and supply, equipment repair|S|V|A|
+LN|LOG|Navy: dockyards & logistics|Shore|Navy|Maintenance,Logistics|Refit, repair and depots|S|V|N|
+LF|LOG|IAF: Maintenance Command|Logistics|Air Force|Maintenance,Logistics|Overhaul and supply|S|P|F|
+TRN|IDE|Training|Domain|Joint|Training|Doctrine, professional education, technical and operational training|G|V|M|
+NDA|TRN|National Defence Academy|Institute|Joint|Training|Tri-service pre-commissioning training|S|V|M|Pune
+PME|TRN|Staff & war colleges|Institute|Joint|Training|Defence Services Staff College, National Defence College, Service war colleges|S|P|M|
+SCH|TRN|Service academies & schools|Institute|Joint|Training|IMA, OTA, Naval and Air Force academies, technical schools|S|P|M|
+CYB|IDE|Intelligence, Cyber & EW|Domain|Joint|Intelligence,Cyber,EW|Only publicly documented bodies shown|G|V|M|
+DIA|CYB|Defence Intelligence Agency|Agency|Joint|Intelligence|Tri-service military intelligence coordination|S|P|X|
+DCA|CYB|Defence Cyber Agency|Agency|Joint|Cyber|Tri-service cyber under HQ IDS|S|P|X|
+EWU|CYB|Service EW & Signals|Units|Joint|EW,Intelligence|Signals corps and Service EW units; detail not public|S|D|X|
+NTR|CYB|NTRO / CERT-In (outside MoD)|Outside MoD|Civilian|Intelligence,Cyber|Not in MoD chain; shown for context|X|P|X|
+SPC|IDE|Space|Domain|Joint|Space|Defence space functions|G|V|M|
+DSA|SPC|Defence Space Agency|Agency|Joint|Space|Tri-service under HQ IDS|S|P|X|
+ISRO|SPC|ISRO / Dept of Space (outside MoD)|Outside MoD|Civilian|Space|Civil space organisation supporting defence users|X|V|X|
+CG|IDE|Coast Guard & Others|Domain|Coast Guard|Operations|Not part of Army/Navy/IAF chain|G|V|C|
+ICG|CG|Indian Coast Guard|Force|Coast Guard|Operations|Under MoD; separate statute (Coast Guard Act 1978)|A|V|C|
+CAPF|CG|Assam Rifles & CAPFs (MHA)|Outside MoD|Civilian|Operations|Under Ministry of Home Affairs; Assam Rifles operationally under Army per public record|X|P|X|
+BRO|CG|Border Roads Organisation|Organisation|Civilian|Logistics|Infrastructure organisation under MoD|A|P|M|
+IND|IDE|Industry Interface|Domain|Industry|Procurement,Production|Institutional entry points for industry|G|V|P|
+IDEX|IND|iDEX / DIO|Programme|Industry|R&D,Procurement|Innovation for startups and MSMEs under DDP|S|V|P|
+TDF|IND|DRDO Technology Development Fund|Programme|Industry|R&D|Funds industry-led development|S|V|D|
+PRIME|IND|Private prime contractors|Industry|Industry|Production|Integrators and system suppliers|S|P|P|
+MSME|IND|MSMEs & Startups|Industry|Industry|Production|Sub-system and component suppliers|S|P|P|
+EXP|IND|Defence exports|Function|Industry|Production|Export promotion under DDP; exports need government authorisation|S|P|P|
+COSC|JNT|Chiefs of Staff Committee|Committee|Joint|Command,Operations|CDS is permanent chairman; Service Chiefs are members|X|P|M|
+JLN|JNT|Joint Logistics Nodes|Logistics org|Joint|Logistics|Tri-service nodes publicly reported (e.g., Mumbai, Guwahati, Port Blair)|S|D|X|
+DGDE|DOD|Directorate General Defence Estates|Organisation|Civilian|Administration|Defence land and cantonment administration|A|P|M|
+CGDA|DOD|Controller General of Defence Accounts|Finance|Civilian|Administration|Defence pay, accounts, internal audit|F|P|M|
+NCC|DOD|National Cadet Corps|Organisation|Civilian|Training|Youth cadet organisation under MoD|A|P|M|
+DGAFMS|DOD|Armed Forces Medical Services|Organisation|Joint|Medical|Tri-service medical administration; Services keep own medical corps|A|P|M|
+PCN|NCA|Political Council|Council|Civilian|Command|Chaired by PM; authorises use of nuclear weapons (official 2003 statement)|G|V|X|
+ECN|NCA|Executive Council|Council|Civilian|Command|Chaired by NSA; inputs to Political Council and directives to SFC|G|V|X|
+VCOAS|COAS|Vice Chief of Army Staff|Appointment|Army|Command,Administration|Senior deputy to COAS|R|P|A|
+DCCD|COAS|DCOAS (Capability Development & Sustenance)|Branch|Army|Procurement,Logistics|Requirement and sustainment staff; branch titles revised over time|R|P|A|
+DGMO|COAS|Directorate General of Military Operations|Directorate|Army|Operations|Operations staff at AHQ; staff role, not field command|R|P|A|
+DGMI|COAS|Directorate General of Military Intelligence|Directorate|Army|Intelligence|Army military intelligence staff|R|P|A|
+MSB|COAS|Military Secretary Branch|Branch|Army|Administration|Officer postings and career management|R|P|A|
+AGB|COAS|Adjutant General Branch|Branch|Army|Administration|Personnel, discipline, legal link|R|P|A|
+QMGB|COAS|Quartermaster General Branch|Branch|Army|Logistics|Supply, transport, infrastructure staff|R|P|A|
+MGOB|COAS|Master General of Ordnance Branch|Branch|Army|Procurement,Maintenance|Equipment staff: requirements, ordnance and EME material|R|P|A|
+EINC|COAS|Engineer-in-Chief Branch|Branch|Army|Operations|Engineer staff and infrastructure|R|P|A|
+ADGPI|COAS|ADG Public Information|Directorate|Army|Administration|Army public information|R|P|A|
+ARD|COAS|Arms directorates at AHQ|Directorate|Army|Training,Operations|Infantry, Artillery, Mechanised Forces, Air Defence, Aviation staff direction|R|P|A|
+NC|CMD|Northern Command|Command|Army|Operations|Operational command|C|V|A|Udhampur
+WC|CMD|Western Command|Command|Army|Operations|Operational command|C|V|A|Chandimandir
+EC|CMD|Eastern Command|Command|Army|Operations|Operational command|C|V|A|Kolkata
+SC|CMD|Southern Command|Command|Army|Operations|Operational command|C|V|A|Pune
+CC|CMD|Central Command|Command|Army|Operations|Operational command|C|V|A|Lucknow
+SWC|CMD|South Western Command|Command|Army|Operations|Operational command|C|V|A|Jaipur
+COBS|COR|Corps, division, brigade order of battle|Information gap|Army|Operations|Corps names are public; current assignments and subordinates not mapped here|C|C|A|
+A_INF|CA|Infantry|Arm|Army|Operations|Regimental system; closes with and holds ground|S|V|A|
+A_ARM|CA|Armoured Corps|Arm|Army|Operations|Tank and armoured reconnaissance regiments|S|V|A|
+A_MIF|CA|Mechanised Infantry|Arm|Army|Operations|Infantry in armoured vehicles|S|V|A|
+A_ART|CA|Regiment of Artillery|Arm|Army|Operations|Field, medium, rocket and missile regiments|S|V|A|
+A_AD|CA|Army Air Defence|Arm|Army|Operations|Ground-based air defence|S|V|A|
+A_AVN|CA|Army Aviation|Arm|Army|Operations|Aviation and helicopter units|S|V|A|
+A_ENG|CSA|Corps of Engineers|Corps|Army|Operations|Combat engineering and construction|S|V|A|
+A_SIG|CSA|Corps of Signals|Corps|Army|Cyber,EW|Army communications and information systems|S|V|A|
+A_INT|CSA|Intelligence Corps|Corps|Army|Intelligence|Army intelligence personnel|S|P|A|
+S_ASC|SVC|Army Service Corps|Corps|Army|Logistics|Supplies, transport, fuel|S|V|A|
+S_AOC|SVC|Army Ordnance Corps|Corps|Army|Logistics|Ordnance stores and ammunition management|S|V|A|
+S_EME|SVC|Corps of EME|Corps|Army|Maintenance|Equipment repair and technical support|S|V|A|
+S_AMC|SVC|Army Medical Corps|Corps|Army|Medical|Medical services|S|V|A|
+S_ADC|SVC|Army Dental Corps|Corps|Army|Medical|Dental services|S|V|A|
+S_RVC|SVC|Remount & Veterinary Corps|Corps|Army|Medical|Animal care and remounts|S|V|A|
+S_MP|SVC|Corps of Military Police|Corps|Army|Administration|Provost and policing functions|S|V|A|
+S_AEC|SVC|Army Education Corps|Corps|Army|Training|Instruction and education|S|V|A|
+S_JAG|SVC|Judge Advocate General Dept|Department|Army|Administration|Military law|S|V|A|
+S_MNS|SVC|Military Nursing Service|Service|Army|Medical|Nursing officers|S|V|A|
+S_APS|SVC|Army Postal Service|Service|Army|Logistics|Military mail|S|V|A|
+SOLD|ARMY|Personnel / Sub-unit Model|Model|Army|Operations|Typical / doctrinal structure only; not a current order of battle|G|R|A|
+I1|SOLD|Infantry battalion|Unit (typical)|Army|Operations|Commanding Officer; rifle companies plus headquarters and support elements|C|R|A|
+I2|I1|Company|Sub-unit (typical)|Army|Operations|Led by an officer (company commander)|C|R|A|
+I3|I2|Platoon|Sub-unit (typical)|Army|Operations|Typically led by a Junior Commissioned Officer|C|R|A|
+I4|I3|Section|Sub-unit (typical)|Army|Operations|Led by a non-commissioned officer|C|R|A|
+I5|I4|Soldier (rifleman)|Individual role|Army|Operations|Personal weapon; recruited, trained and recorded via the regiment|C|R|A|
+G1|SOLD|Artillery regiment|Unit (typical)|Army|Operations|Regiment of the Artillery arm|C|R|A|
+G2|G1|Battery|Sub-unit (typical)|Army|Operations|Fire unit under a battery commander|C|R|A|
+G3|G2|Troop|Sub-unit (typical)|Army|Operations|Sub-division of a battery|C|R|A|
+G4|G3|Gun detachment / crew|Individual roles|Army|Operations|Crew roles around a weapon; vary by equipment|C|R|A|
+T1|SOLD|Armoured regiment|Unit (typical)|Army|Operations|Regiment of the Armoured Corps|C|R|A|
+T2|T1|Squadron|Sub-unit (typical)|Army|Operations|Led by a squadron commander|C|R|A|
+T3|T2|Troop|Sub-unit (typical)|Army|Operations|Small group of tanks|C|R|A|
+T4|T3|Vehicle crew|Individual roles|Army|Operations|Commander, gunner, driver, loader/operator; varies by type|C|R|A|
+PERS|SOLD|Where an individual sits|Explainer|Army|Administration|Operational chain runs section to platoon to company to battalion to formation. Administration runs through unit and regiment/centre. Technical trades (signals, EME, medical, supply) often come from other corps and are attached. Rank, appointment, arm and formation are distinct.|S|R|A|
+WNC|NCM|Western Naval Command|Command|Navy|Operations|Operational command|C|V|N|Mumbai
+ENC|NCM|Eastern Naval Command|Command|Navy|Operations|Operational command|C|V|N|Visakhapatnam
+SNC|NCM|Southern Naval Command|Command|Navy|Training|Training command|C|V|N|Kochi
+PSO|CNS|Naval Staff principal officers|Staff|Navy|Operations,Administration,Procurement|Operations, personnel, materiel, logistics branches; titles to verify|R|P|N|
+DYM|SHO|Naval Dockyard Mumbai|Dockyard|Navy|Maintenance|Ship repair and refit|S|P|N|Mumbai
+DYV|SHO|Naval Dockyard Visakhapatnam|Dockyard|Navy|Maintenance|Ship repair and refit|S|P|N|Visakhapatnam
+SRY|SHO|Naval Ship Repair Yards|Dockyard|Navy|Maintenance|Regional repair yards; list not mapped here|S|D|N|
+NAS|NAV|Naval air stations & squadrons|Units|Navy|Operations|Detail not enumerated here|O|D|N|
+NHO|NHQ|Naval Hydrographic Office|Organisation|Navy|Operations|Hydrography and charts|T|P|N|Dehradun
+WAC|AC|Western Air Command|Command|Air Force|Operations|Operational command|C|V|F|New Delhi
+EAC|AC|Eastern Air Command|Command|Air Force|Operations|Operational command|C|V|F|Shillong
+CAC|AC|Central Air Command|Command|Air Force|Operations|Operational command|C|V|F|Prayagraj
+SAC|AC|Southern Air Command|Command|Air Force|Operations|Operational command|C|V|F|Thiruvananthapuram
+SWAC|AC|South Western Air Command|Command|Air Force|Operations|Operational command|C|V|F|Gandhinagar
+TCI|AC|Training Command|Command|Air Force|Training|Training command|C|V|F|Bengaluru
+IAFB|CAS|Air Staff branches|Staff|Air Force|Operations,Procurement|Operations, plans, maintenance, personnel; titles to verify|R|P|F|
+IFN|CAS|Operational streams|Function|Air Force|Operations|Fighter, transport, helicopter, air defence, AEW&C, UAS, EW; detail not enumerated|S|D|F|
+IRDE|EL|IRDE|Lab|R&D|R&D|Optics and opto-electronics|S|V|D|Dehradun
+LASTEC|EL|LASTEC|Lab|R&D|R&D|Laser science and technology|S|V|D|Delhi
+SSPL|EL|SSPL|Lab|R&D|R&D|Solid-state devices and sensors|S|V|D|Delhi
+MTRDC|EL|MTRDC|Lab|R&D|R&D|Microwave tubes|S|V|D|Bengaluru
+DARE|EL|DARE|Lab|R&D|EW,R&D|Avionics and electronic warfare research|S|P|D|Bengaluru
+TBRL|ARM|TBRL|Lab|R&D|R&D|Terminal ballistics|S|V|D|Chandigarh
+RDEE|ARM|R&DE (Engineers)|Lab|R&D|R&D|Engineering and bridging equipment|S|V|D|Pune
+DRDE|MT|DRDE|Lab|R&D|R&D|Chemical and biological defence|S|V|D|Gwalior
+DFRL|MT|DFRL|Lab|R&D|R&D|Defence food research|S|V|D|Mysuru
+DEBEL|MT|DEBEL|Lab|R&D|R&D|Bioengineering and life support|S|V|D|Bengaluru
+NPOL|NV|NPOL|Lab|R&D|R&D|Naval physical and oceanographic research|S|V|D|Kochi
+ITR|MS|Integrated Test Range|Test range|R&D|Testing|Missile test range|S|V|D|Chandipur
+ADA|DDRD|Aeronautical Development Agency|Agency|R&D|R&D|Autonomous body under DDR&D; combat aircraft design agency|A|P|D|Bengaluru
+NFTC|TEST|National Flight Test Centre|Test centre|R&D|Testing|Flight test facility associated with ADA|S|P|D|Bengaluru
+MIL|NEW|Munitions India Limited|DPSU|Industry|Production|Ammunition and explosives; successor to OFB ammunition factories|A|P|P|Pune
+AVNL|NEW|Armoured Vehicles Nigam Limited|DPSU|Industry|Production|Armoured and combat vehicles; successor to OFB vehicle factories (e.g., Heavy Vehicles Factory Avadi)|A|P|P|Avadi
+AWEIL|NEW|Advanced Weapons and Equipment India Limited|DPSU|Industry|Production|Weapons; successor to OFB arms factories (e.g., Small Arms Factory Kanpur)|A|P|P|Kanpur
+TCL|NEW|Troop Comforts Limited|DPSU|Industry|Production|Clothing and troop comforts; successor to OFB clothing factories|A|P|P|Kanpur
+YIL|NEW|Yantra India Limited|DPSU|Industry|Production|Ordnance equipment and components; successor OFB factories|A|P|P|Nagpur
+IOL|NEW|India Optel Limited|DPSU|Industry|Production|Optical and opto-electronic items; successor to OFB optical factories (e.g., Dehradun)|A|P|P|Dehradun
+GIL|NEW|Gliders India Limited|DPSU|Industry|Production|Parachutes and gliders; successor to the OFB parachute factory|A|P|P|Kanpur
+MDL|SHP|Mazagon Dock Shipbuilders Limited|DPSU|Industry|Production|Warships and submarines|A|V|P|Mumbai
+GRSE|SHP|Garden Reach Shipbuilders & Engineers|DPSU|Industry|Production|Warships and auxiliaries|A|V|P|Kolkata
+GSL|SHP|Goa Shipyard Limited|DPSU|Industry|Production|Patrol vessels and warships|A|V|P|Vasco
+HSL|SHP|Hindustan Shipyard Limited|DPSU|Industry|Production|Ship construction and repair|A|P|P|Visakhapatnam
+SG1|IND|Large private primes|Segment|Industry|Production|Private prime contractors and integrators|S|R|P|
+SG2|IND|Electronics & avionics firms|Segment|Industry|Production|Sensors, avionics, communications|S|R|P|
+SG3|IND|Private shipbuilders|Segment|Industry|Production|Private yards for naval and coast guard vessels|S|R|P|
+SG4|IND|Munitions & energetics firms|Segment|Industry|Production|Private ammunition and explosives suppliers|S|R|P|
+SG5|IND|Materials & components firms|Segment|Industry|Production|Alloys, composites, castings, forgings|S|R|P|
+SG6|IND|Software, AI & space firms|Segment|Industry|Production|Dual-use software, AI, space|S|R|P|
+SG7|IND|Foreign OEMs & JVs|Segment|Industry|Production|Licensed production, partnerships, joint ventures|S|R|P|
+SG8|IND|Academia & institutes|Segment|Industry|R&D|Universities and institutes working with DRDO or Services|S|R|P|
+MHA|CG|Ministry of Home Affairs (outside MoD)|Outside MoD|Civilian|Administration|Administers CAPFs and Assam Rifles; not in the MoD chain|X|P|X|
+ICGR|ICG|Coast Guard Regions|Regions|Coast Guard|Operations|Regional commands (e.g., Western, Eastern, North-East, A&N, North-West)|C|D|C|
+CAPD|IDE|Capabilities|Domain|Joint|Procurement|Capabilities linked to organisations by typed relationships|G|V|M|
+CP1|CAPD|Radars & surveillance sensors|Capability|Joint|Operations|radar; surveillance; fire control|G|R|X|
+CP2|CAPD|Missiles & guided munitions|Capability|Joint|Operations|missile; torpedo; guided; rocket|G|R|X|
+CP3|CAPD|Small arms & ammunition|Capability|Joint|Operations|rifle; gun; ammunition; explosives|G|R|X|
+CP4|CAPD|Armoured & land vehicles|Capability|Joint|Operations|tank; vehicle; truck|G|R|X|
+CP5|CAPD|Ships & submarines|Capability|Joint|Operations|ship; warship; submarine; vessel|G|R|X|
+CP6|CAPD|Aircraft & helicopters|Capability|Joint|Operations|aircraft; fighter; helicopter; engine|G|R|X|
+CP7|CAPD|Unmanned systems|Capability|Joint|Operations|drone; uav; uas|G|R|X|
+CP8|CAPD|Communications & EW|Capability|Joint|Operations|radio; communication; jammer; ew|G|R|X|
+CP9|CAPD|Clothing & general stores|Capability|Joint|Operations|uniform; clothing; stores; tents|G|R|X|`;
+const RL=`RM>MOD>POLICY_CONTROLS>RM is political head of MoD>V
+CDS>DMA>ADMINISTRATIVELY_CONTROLS>CDS heads DMA as its Secretary>V
+DAC>CAW>POLICY_CONTROLS>AoN sets the basis for Acquisition Wing action>V
+DPB>CAW>COORDINATES>Procurement Board oversight and coordination>P
+CAW>AHQ>PROCURES_FOR>Capital acquisition for the Army>V
+CAW>NHQ>PROCURES_FOR>Capital acquisition for the Navy>V
+CAW>AIRHQ>PROCURES_FOR>Capital acquisition for the IAF>V
+AHQ>CAW>GENERATES_REQUIREMENT>Army staff requirements>V
+NHQ>CAW>GENERATES_REQUIREMENT>Navy staff requirements>V
+AIRHQ>CAW>GENERATES_REQUIREMENT>IAF staff requirements>V
+IDS>CAW>COORDINATES>Joint capability perspective planning>P
+CAW>HAL>PROCURES_FOR>Contracts with DPSU>V
+CAW>BEL>PROCURES_FOR>Contracts with DPSU>V
+CAW>BDL>PROCURES_FOR>Contracts with DPSU>V
+CAW>SHP>PROCURES_FOR>Contracts with shipyard DPSUs>V
+CAW>NEW>PROCURES_FOR>Contracts with successor DPSUs>V
+CCS>CAW>FINANCIALLY_CONTROLS>Approval of large acquisitions>P
+DFIN>CAW>FINANCIALLY_CONTROLS>Integrated Finance vetting>V
+DRDO>HAL>DEVELOPS>Technology development partner in programmes>P
+DRDO>BEL>DEVELOPS>Development-cum-production partner>P
+DRDO>BDL>DEVELOPS>Missile development; BDL production>P
+DRDO>PRIME>DEVELOPS>Transfer of technology to industry>P
+DRDO>CEM>ADMINISTRATIVELY_CONTROLS>CEMILAC sits within DRDO>V
+DRDO>MSL>DEVELOPS>Development role publicly acknowledged>D
+DGQA>AHQ>INSPECTS>Quality assurance for Army stores>V
+DGQA>NHQ>INSPECTS>QA for Navy stores (scope varies)>P
+DGAQA>AIRHQ>INSPECTS>Aeronautical QA for IAF>V
+CEM>AIRHQ>CERTIFIES>Military airworthiness certification>V
+ASTE>CEM>SUPPORTS>Flight test support>P
+RNG>CAW>TESTS>Trial support to acquisition>P
+TEC>CAW>EVALUATES>Technical and staff evaluation>P
+CNC>CAW>COORDINATES>Commercial negotiation>P
+HAL>AIRHQ>SUPPLIES>Aircraft and helicopters>V
+BEL>AHQ>SUPPLIES>Radars and electronics>V
+BEL>NHQ>SUPPLIES>Sensors and electronics>V
+BDL>NHQ>SUPPLIES>Missiles and torpedoes>V
+SHP>NHQ>SUPPLIES>Ships and submarines>V
+NEW>AHQ>SUPPLIES>Ammunition, vehicles, equipment>V
+MOD>ICG>ADMINISTRATIVELY_CONTROLS>Coast Guard administered by MoD>V
+PCN>SFC>POLICY_CONTROLS>Political Council authorises use; further chain detail not publicly established>D
+DDP>IDEX>FUNDS>iDEX/DIO under DDP>V
+IDEX>MSME>FUNDS>Grants to startups and MSMEs>V
+TDF>MSME>FUNDS>DRDO funds industry development>V
+MSME>PRIME>SUPPLIES>Sub-systems>P
+ADB>DRDO>COORDINATES>Army design interface>P
+ART>SVC>TRAINS>ARTRAC trains arms/services>P
+IDS>DCA>ADMINISTRATIVELY_CONTROLS>Under HQ IDS>P
+IDS>DSA>ADMINISTRATIVELY_CONTROLS>Under HQ IDS>P
+MHA>CAPF>ADMINISTRATIVELY_CONTROLS>Home Ministry administers Assam Rifles and CAPFs>P
+AHQ>CAPF>OPERATIONALLY_CONTROLS>Assam Rifles under Army operational control (public record); other CAPFs not under Army>P
+ICG>NHQ>COORDINATES>Maritime coordination; separate chains of command>P
+MOD>BRO>ADMINISTRATIVELY_CONTROLS>BRO sits under MoD>P
+BRO>AHQ>SUPPORTS>Border road infrastructure including military needs>P
+CDS>COSC>COORDINATES>CDS is permanent chairman>V`;
+const CG2=`CP1|USES:A_AD,AC,FLT;GENERATES_REQUIREMENT:AHQ,NHQ,AIRHQ;PROCURES_FOR:CAW;DEVELOPS:LRDE;MANUFACTURES:BEL;TESTS:RNG;INSPECTS:DGQA,DGAQA;CERTIFIES:CEM
+CP2|USES:A_ART,A_AD,FLT,AC;GENERATES_REQUIREMENT:AHQ,NHQ,AIRHQ;PROCURES_FOR:CAW;DEVELOPS:DRDL,RCI;MANUFACTURES:BDL;TESTS:RNG,ITR;INSPECTS:DGQA,DGAQA;CERTIFIES:CEM
+CP3|USES:A_INF;GENERATES_REQUIREMENT:AHQ;PROCURES_FOR:CAW;DEVELOPS:ARDE;MANUFACTURES:AWEIL,MIL;INSPECTS:DGQA
+CP4|USES:A_ARM,A_MIF;GENERATES_REQUIREMENT:AHQ;PROCURES_FOR:CAW;DEVELOPS:CVR;MANUFACTURES:AVNL,BEML;TESTS:TEC;INSPECTS:DGQA
+CP5|USES:FLT,SUBN;GENERATES_REQUIREMENT:NHQ;TECHNICALLY_CONTROLS:NDG;PROCURES_FOR:CAW;MANUFACTURES:MDL,GRSE,GSL,HSL
+CP6|USES:AC,NAV,A_AVN;GENERATES_REQUIREMENT:AIRHQ,NHQ,AHQ;PROCURES_FOR:CAW;DEVELOPS:ADE,GTRE,ADA;TESTS:ASTE,NFTC;INSPECTS:DGAQA;CERTIFIES:CEM;MANUFACTURES:HAL
+CP7|USES:AC,FLT,CMD;GENERATES_REQUIREMENT:AHQ,NHQ,AIRHQ;PROCURES_FOR:CAW;DEVELOPS:ADE;CERTIFIES:CEM
+CP8|USES:A_SIG,EWU;GENERATES_REQUIREMENT:AHQ,NHQ,AIRHQ;PROCURES_FOR:CAW;DEVELOPS:DLRL,DEAL;MANUFACTURES:BEL;INSPECTS:DGQA
+CP9|USES:UNIT;GENERATES_REQUIREMENT:AHQ;PROCURES_FOR:AHQ;MANUFACTURES:TCL;INSPECTS:DGQA`;
+const N={},E=[];
+D.split('\n').forEach(l=>{const a=l.split('|');N[a[0]]={id:a[0],p:a[1],name:a[2],type:a[3],svc:a[4],fn:a[5],role:a[6],rel:a[7],c:a[8],src:a[9],loc:a[10]||'',k:[],open:false}});
+Object.values(N).forEach(n=>n.p&&N[n.p].k.push(n.id));
+RL.split('\n').forEach(l=>{const a=l.split('>');E.push({s:a[0],t:a[1],ty:a[2],d:a[3],c:a[4]})});
+CG2.split('\n').forEach(l=>{const[t,r]=l.split('|');r.split(';').forEach(x=>{const[ty,ids]=x.split(':');ids.split(',').forEach(o=>E.push({s:o,t,ty,d:'Capability-graph relation; generalised',c:'P'}))})});
+let sel='IDE',CHs=null,HP=new Set(),cur='IDE';
+N.IDE.open=true;
+const W=190,H=24;
+const SVCS=['Army','Navy','Air Force','Joint','Coast Guard','Civilian','R&D','Industry'];
+const FNS=['Command','Administration','Operations','Procurement','R&D','Production','Testing','Certification','Quality','Logistics','Maintenance','Training','Intelligence','Cyber','Space','EW','Medical'];
+$('#fs').innerHTML='<option value="">All services</option>'+SVCS.map(s=>`<option>${s}</option>`).join('');
+$('#ff').innerHTML='<option value="">All functions</option>'+FNS.map(s=>`<option>${s}</option>`).join('');
+$('#ft').innerHTML='<option value="">All relationship types</option>'+Object.keys(TY).map(s=>`<option>${s}</option>`).join('');
+['fs','ff','ft'].forEach(i=>$('#'+i).onchange=render);
+$('#lg').innerHTML=[...new Set(Object.values(TY).map(v=>v.t))].map(t=>{const v=Object.values(TY).find(x=>x.t==t);return `<span><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke="${v.c}" stroke-width="2" stroke-dasharray="${v.d}"/></svg> ${v.g} ${t}</span>`}).join('')+Object.values(CL).slice(0,4).map(v=>`<span style="color:${v[1]}">● ${v[0]}</span>`).join('');
+const match=n=>(!$('#fs').value||n.svc==$('#fs').value)&&(!$('#ff').value||n.fn.split(',').includes($('#ff').value));
+function reveal(id){let n=N[id];while(n.p){n=N[n.p];n.open=true}}
+function path(id){const r=[];let n=N[id];while(n){r.unshift(n.name);n=N[n.p]}return r.join(' › ')}
+function render(){
+ let y=0,md=0;const vis=[];
+ (function w(id,d){const n=N[id];n.d=d;md=Math.max(md,d);vis.push(n);const ks=n.open?n.k:[];if(!ks.length){n.y=y++;return}ks.forEach(k=>w(k,d+1));n.y=(N[ks[0]].y+N[ks[ks.length-1]].y)/2})('IDE',0);
+ const X=n=>10+n.d*230,Y=n=>10+n.y*32;let s='';
+ vis.forEach(n=>{if(!n.p)return;const p=N[n.p],t=TY[RC[n.rel]],ax=X(p)+W,ay=Y(p)+H/2,bx=X(n),by=Y(n)+H/2;
+  s+=`<path d="M${ax},${ay}C${ax+22},${ay} ${bx-22},${by} ${bx},${by}" fill="none" stroke="${HP.has(n.id)?'#bfe3bf':t.c}" stroke-width="${n.rel=='G'?1:1.6}" stroke-dasharray="${t.d}"><title>${RC[n.rel]}</title></path>`});
+ const ft=$('#ft').value,tset=ft?[ft]:CHs;
+ E.filter(e=>(e.s==sel||e.t==sel)&&(!tset||tset.includes(e.ty))&&N[e.s].d!=null&&N[e.t].d!=null&&vis.includes(N[e.s])&&vis.includes(N[e.t])).forEach(e=>{
+  const a=N[e.s],b=N[e.t],t=TY[e.ty],bad='UC'.includes(e.c)||e.c=='D';const same=a.d==b.d,fw=a.d<b.d;
+  const ax=same?X(a)+W:fw?X(a)+W:X(a),bx=same?X(b)+W:fw?X(b):X(b)+W,ay=Y(a)+H/2,by=Y(b)+H/2,mx=(ax+bx)/2+(same?70:0),my=(ay+by)/2;
+  s+=`<path d="M${ax},${ay}Q${mx},${my} ${bx},${by}" fill="none" stroke="${bad?'#e0564f':t.c}" stroke-width="2" stroke-dasharray="${bad?'3 3':t.d}"/><text x="${mx-30}" y="${my-3}" style="fill:${bad?'#e0564f':t.c};font-size:9px">${t.g} ${e.ty}</text>`});
+ vis.forEach(n=>{const f=!match(n),c=CL[n.c][1];
+  s+=`<g class="nd${n.id==sel?' sel':''}" data-id="${n.id}" opacity="${f?.25:1}"><rect x="${X(n)}" y="${Y(n)}" width="${W}" height="${H}" rx="3"/><circle cx="${X(n)+9}" cy="${Y(n)+H/2}" r="3.5" fill="${c}"/><text x="${X(n)+18}" y="${Y(n)+16}">${n.name.length>25?n.name.slice(0,24)+'…':n.name}</text>${n.k.length?`<text x="${X(n)+W-14}" y="${Y(n)+16}" style="fill:#8a98a4">${n.open?'−':'+'}</text>`:''}</g>`});
+ const sv=$('#svg');sv.setAttribute('width',(md+1)*230+40);sv.setAttribute('height',y*32+30);sv.innerHTML=s;
+ sv.querySelectorAll('.nd').forEach(g=>g.onclick=()=>pick(g.dataset.id,true));
+ panel();lst();
+}
+function pick(id,tog){if(tog&&sel==id&&N[id].k.length)N[id].open=!N[id].open;else if(tog&&N[id].k.length)N[id].open=true;sel=id;cur=id;CHs=null;HP=new Set();render();const g=document.querySelector(`.nd[data-id="${id}"] rect`);g&&g.scrollIntoView({block:'center',inline:'center'})}
+function rel(id){return E.filter(e=>e.s==id||e.t==id)}
+function panel(){const n=N[sel],c=CL[n.c],par=N[n.p],rs=rel(sel);
+ $('#pn').innerHTML=`<div style="color:var(--mu);font-size:10px">${path(sel)}</div><div style="font-size:15px;font-weight:600">${n.name}</div><span class="tag" style="color:${c[1]}">${c[0]}</span><span class="tag">${n.type}</span><span class="tag">${n.svc}</span>
+ <span class="k">ROLE</span>${n.role}${n.loc?`<span class="k">LOCATION</span>${n.loc}`:''}
+ <span class="k">PARENT / RELATION TO PARENT</span>${par?`${par.name} (${RC[n.rel]})`:'—'}
+ <span class="k">FUNCTIONS</span>${n.fn||'—'}
+ <span class="k">DOWNSTREAM (${n.k.length})</span>${n.k.map(k=>N[k].name).join(', ')||'—'}
+ <span class="k">PROCUREMENT / TECHNICAL / END-USER ROLES</span>${rs.length?rs.map(e=>{const o=N[e.s==sel?e.t:e.s],t=TY[e.ty];return `<div class="rl" onclick="pick('${o.id}',false);reveal('${o.id}');render()" style="color:${t.c}">${t.g} ${e.s==sel?'→':'←'} ${e.ty} · <span style="color:var(--tx)">${o.name}</span> <small>[${e.c}] ${e.d}</small></div>`}).join(''):'Public information insufficient.'}
+ <span class="k">SOURCE</span><a href="${SRC[n.src][1]}" target="_blank" rel="noopener">${SRC[n.src][0]}</a> (institutional homepage)
+ <span class="k">LAST VERIFIED</span>Compiled from knowledge to mid-2026; not live re-verified
+ <div style="margin-top:10px">${[['UPSTREAM','up'],['DOWNSTREAM','dn'],['COMMAND CHAIN','cmd'],['PROCUREMENT CHAIN','proc'],['TECHNICAL CHAIN','tech'],['END-USER CHAIN','eu'],['RELATED ORGS','all']].map(b=>`<button class="btn" onclick="chain('${b[1]}')">SHOW ${b[0]}</button>`).join(' ')}</div>`}
+function chain(k){const n=N[sel];HP=new Set();CHs=null;
+ if(k=='up'){let m=n;while(m){HP.add(m.id);m=N[m.p]}reveal(sel)}
+ else if(k=='dn'){n.open=true;n.k.forEach(x=>N[x].open=true)}
+ else{CHs=k=='all'?null:CH[k];rel(sel).filter(e=>!CHs||CHs.includes(e.ty)).forEach(e=>reveal(e.s==sel?e.t:e.s))}
+ render()}
+function lst(){const n=N[cur];$('#list').innerHTML=`<div style="color:var(--mu);margin:6px 0">${path(cur)}</div>`+(n.p?`<button class="btn" onclick="cur='${n.p}';sel=cur;render()">↑ UP</button>`:'')+n.k.map(k=>`<div class="rl" onclick="cur='${k}';sel='${k}';render()" style="padding:8px"><span style="color:${CL[N[k].c][1]}">●</span> ${N[k].name} ${N[k].k.length?'›':''}</div>`).join('')}
+function focus(id){Object.values(N).forEach(n=>n.open=false);N.IDE.open=true;reveal(id);N[id].open=true;sel=id;cur=id;CHs=null;HP=new Set();show('app');render()}
+const NAVI=[['OVERVIEW','IDE'],['COMMAND','MOD'],['ARMY','ARMY'],['NAVY','NAVY'],['AIR FORCE','IAF'],['JOINT','JNT'],['STRATEGIC','STR'],['R&D','RD'],['ACQUISITION','ACQ'],['PRODUCTION','PROD'],['TESTING','TEST'],['LOGISTICS','LOG'],['TRAINING','TRN'],['INDUSTRY','IND'],['SUPPLIER NAVIGATOR','pg:nav'],['SOURCES','pg:src'],['ABOUT / METHOD','pg:abt']];
+$('#nav').innerHTML=NAVI.map((n,i)=>`<button data-i="${i}">${n[0]}</button>`).join('');
+$('#nav').onclick=e=>{const b=e.target.closest('button');if(!b)return;const t=NAVI[b.dataset.i][1];document.querySelectorAll('#nav button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+ if(t.startsWith('pg:'))page(t.slice(3));else{focus(t);if(t=='ACQ')page('acq',true)}}
+function show(w){$('#app').style.display=w=='app'?'':'none';$('#list').style.display=w=='app'&&innerWidth<=800?'block':'none';$('#doc').style.display=w=='doc'?'block':'none'}
+const PIPE=[['Capability gap & planning','Service HQ; HQ IDS (joint perspective)','—','DAC (plans)','Service'],['Acceptance of Necessity','Service HQ proposal','Acquisition Wing + Integrated Finance','DAC','—'],['RFI / RFP','Service HQ specifies (staff requirements)','—','Acquisition Wing issues','—'],['Technical evaluation & trials','Service HQ specifies parameters','Technical evaluation committee; Service trial units; DRDO / test ranges','—','Service users in trials'],['Staff evaluation','Service HQ','Service staff evaluation','—','Service'],['Commercial evaluation & negotiation','—','Acquisition Wing + Finance','CNC negotiates','—'],['Approval','—','Finance vetting','Competent Financial Authority by value (RM / FM / CCS)','—'],['Contract','—','—','MoD Acquisition Wing signs','—'],['Production, QA & acceptance','—','DGQA / DGAQA; CEMILAC (airworthiness); Service overseeing teams','Manufacturer (DPSU / private) delivers','Service accepts after inspection'],['Induction & lifecycle','—','—','—','Service operates; Army AOC/EME, Navy dockyards, IAF Maintenance Command sustain']];
+function page(p,keep){show('doc');let h='';
+ if(p=='acq')h=`<h2>ACQUISITION PATHWAY</h2><table><tr><th>Stage</th><th>Generates / specifies</th><th>Evaluates / tests</th><th>Approves / contracts / negotiates</th><th>Accepts / uses</th></tr>${PIPE.map(r=>'<tr>'+r.map(c=>`<td>${c}</td>`).join('')+'</tr>').join('')}</table><p style="color:var(--mu)">Generalised from public Defence Acquisition Procedure descriptions; procedure editions and thresholds change. Check current MoD documents.</p><button class="btn" onclick="show('app')">OPEN IN GRAPH</button>`;
+ if(p=='nav')h=`<h2>WHERE DO I GO? · CAPABILITY → ORGANISATION</h2><p style="color:var(--mu)">PUBLIC-DOMAIN ORGANISATIONAL NAVIGATION, derived from graph edges. Not an official procurement route.</p><input id="cq" placeholder="What do you make or supply? e.g. radar, drone, uniform" style="width:100%;max-width:520px;background:var(--pn);color:var(--tx);border:1px solid var(--ln);padding:8px"><div>${Object.values(N).filter(n=>n.type=='Capability').map(n=>`<span class="ch" onclick="cap('${n.id}')">${n.name}</span>`).join('')}</div><div id="co"></div>`;
+ if(p=='src')h=`<h2>SOURCES</h2><p>Tier 1 official (institutional pointers; access dates not recorded in this build):</p><ul>${Object.values(SRC).map(s=>`<li><a href="${s[1]}" target="_blank" rel="noopener">${s[0]}</a> — ${s[1]}</li>`).join('')}<li><a href="https://cag.gov.in" target="_blank" rel="noopener">CAG</a></li><li><a href="https://sansad.in" target="_blank" rel="noopener">Parliament / Standing Committee on Defence</a> (Tier 2)</li></ul><p style="color:var(--mu)">Per-claim source records (title, date, access date, evidence type) are not yet populated; each node links to its institutional source only.</p>`;
+ if(p=='abt')h=`<h2>ABOUT / METHODOLOGY</h2><p>Purpose: locate a capability inside India's defence system. Command, administration, procurement, technical, testing, quality and certification are modelled as separate relationship types, not one chain. No office-holder names, contacts or classified detail are included.</p><p><b>Confidence:</b> ${Object.values(CL).map(c=>`<span class="tag" style="color:${c[1]}">${c[0]}</span>`).join(' ')}</p><p><b>Limits:</b> compiled from the author's knowledge to mid-2026 without live source checks. Structures, DAP editions, thresholds and DRDO cluster mappings change. Nothing here is live re-verified: PUBLICLY DOCUMENTED means consistent with long-standing public record, not checked against a current source. Unknown items say: Public information insufficient. Historical (pre-2021 OFB) structures are not shown. Authority filter and full per-claim source records are not implemented in this version.</p>`;
+ $('#doc').innerHTML=h;if(p=='nav')navInit()}
+const ROLES=[['USES','End user'],['GENERATES_REQUIREMENT','Requirement owner'],['SPECIFIES','Specification'],['TECHNICALLY_CONTROLS','Technical authority'],['PROCURES_FOR','Procurement authority'],['DEVELOPS','Developer'],['TESTS','Testing'],['INSPECTS','Inspection / QA'],['CERTIFIES','Certification'],['MANUFACTURES','Manufacturer'],['ACCEPTS','Acceptance'],['MAINTAINS','Maintenance']];
+function navInit(){const o=Object.values(N).filter(n=>n.type=='Capability');$('#cq').oninput=e=>{const v=e.target.value.toLowerCase().trim();const m=o.find(n=>v&&(n.name+' '+n.role).toLowerCase().includes(v));m?cap(m.id):$('#co').innerHTML=v?'<p style="color:var(--r)">Public information insufficient: no capability node matches.</p>':''}}
+function cap(id){const n=N[id];$('#co').innerHTML=`<h3>${n.name}</h3><table>`+ROLES.map(r=>{const l=E.filter(e=>e.t==id&&e.ty==r[0]);return `<tr><th>${r[1]}<br><small>${r[0]}</small></th><td>${l.length?l.map(e=>`<span class="ch" onclick="focus('${e.s}')">${N[e.s].name}</span>`).join(''):'<span style="color:var(--r)">Public information insufficient</span>'}</td></tr>`}).join('')+`</table>`}
+let Z=1;function zoom(d){Z=Math.max(.4,Math.min(1.6,Z+d));$('#svg').style.zoom=Z}
+const q=$('#q'),rs=$('#res');
+q.oninput=()=>{const v=q.value.toLowerCase().trim();if(!v){rs.style.display='none';return}
+ const m=Object.values(N).filter(n=>(n.name+' '+n.role+' '+n.fn+' '+n.type).toLowerCase().includes(v)).slice(0,8);
+ rs.style.display='block';rs.innerHTML=m.map(n=>{const r=rel(n.id).filter(e=>e.t==n.id).map(e=>e.ty+': '+N[e.s].name).join(' · ');return `<div data-id="${n.id}"><b>${n.name}</b><br><small style="color:var(--mu)">Sits: ${path(n.id)}${r?'<br>'+r:''}</small></div>`}).join('')||'<div>Public information insufficient.</div>'};
+rs.onclick=e=>{const d=e.target.closest('[data-id]');if(!d)return;rs.style.display='none';reveal(d.dataset.id);show('app');pick(d.dataset.id,false)};
+render();
+</script></body></html>
